@@ -2,10 +2,12 @@ import pandas as pd
 import streamlit as st
 import requests
 
-# Title
-st.title("Find Best Doctors in Your City")
+# Wide layout for better table display
+st.set_page_config(page_title="Find Best Doctors", layout="wide")
+st.title("🩺 Find the Best Doctors in Your City")
 
-# City slug mapping
+# --- Utilities ---
+
 def get_city_slug_map():
     return {
         "Toronto": "toronto",
@@ -13,11 +15,10 @@ def get_city_slug_map():
         "New York": "new-york"
     }
 
-# Determine state based on city slug
 def get_state(city_slug):
     return "on" if city_slug in ('toronto', 'ottawa') else "ny"
 
-# Fetch doctor listings
+@st.cache_data(show_spinner="Fetching doctors list...")
 def fetch_doctors(state, city_slug, max_pages=50):
     all_data = pd.DataFrame()
     for page in range(1, max_pages):
@@ -30,33 +31,35 @@ def fetch_doctors(state, city_slug, max_pages=50):
             all_data = pd.concat([all_data, pd.DataFrame([extract_doctor_info(listing)])])
     return all_data
 
-# Parse doctor info safely
 def extract_doctor_info(listing):
+    location = listing.get('location') or {}
+    city_info = location.get('city') or {}
+    rating_info = listing.get('rating') or {}
+
     return {
         'Name': listing.get('full_name', 'Unknown'),
         'Speciality': listing.get('specialty', 'Unknown'),
-        'City': listing.get('location', {}).get('city', {}).get('name', 'Unknown'),
-        'Rating': listing.get('rating', {}).get('average', 0),
-        'Phone Number': listing.get('location', {}).get('phone_number', 'Unknown'),
-        'Address': listing.get('location', {}).get('address', 'Unknown')
+        'City': city_info.get('name', 'Unknown'),
+        'Rating': rating_info.get('average', 0),
+        'Phone Number': location.get('phone_number', 'Unknown'),
+        'Address': location.get('address', 'Unknown')
     }
 
-# UI input handlers
-def select_city(city_map):
-    return st.selectbox("Select a City", list(city_map.keys()))
-
 def filter_by_specialty(df):
-    specialties = sorted(df["Speciality"].dropna().unique().tolist()) + ["All"]
-    selected = st.selectbox("Filter by Specialty", specialties)
-    return df if selected == "All" else df[df["Speciality"] == selected]
+    specialties = sorted(df["Speciality"].dropna().unique().tolist())
+    selected = st.multiselect("🎯 Filter by Specialty", specialties, default=[], key="specialty_multiselect")
+    if not selected:
+        return df, "All"
+    return df[df["Speciality"].isin(selected)], ", ".join(selected)
 
-# Main app logic
+# --- Main App ---
+
 def main():
     city_slug_map = get_city_slug_map()
 
     col1, col2 = st.columns(2)
     with col1:
-        selected_city = select_city(city_slug_map)
+        selected_city = st.selectbox("🏙️ Select a City", list(city_slug_map.keys()), key="city_select")
     city_slug = city_slug_map[selected_city]
     state = get_state(city_slug)
 
@@ -64,10 +67,12 @@ def main():
 
     if not df.empty:
         with col2:
-            df = filter_by_specialty(df)
-        st.dataframe(df.sort_values(by="Rating", ascending=False), hide_index=True)
+            filtered_df, selected_specialties = filter_by_specialty(df)
+
+        st.markdown(f"### Showing results for: **{selected_specialties}** in **{selected_city}**")
+        st.dataframe(filtered_df.sort_values(by="Rating", ascending=False), hide_index=True)
     else:
-        st.info("No doctors found for the selected city.")
+        st.warning("No doctors found for the selected city.")
 
 # Run the app
 if __name__ == "__main__":
