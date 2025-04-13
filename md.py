@@ -18,7 +18,7 @@ def get_state(city_slug):
     return "on" if city_slug in ('toronto', 'ottawa') else "ny"
 
 # Fetch doctor listings
-def fetch_doctors(state, city_slug, max_pages=10):
+def fetch_doctors(state, city_slug, max_pages=50):
     all_data = pd.DataFrame()
     for page in range(1, max_pages):
         response = requests.get(f"https://www.ratemds.com/best-doctors/{state}/{city_slug}/?json=true&page={page}")
