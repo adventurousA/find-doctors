@@ -13,13 +13,13 @@ def get_city_slug_map():
         "Toronto": "toronto",
         "Ottawa": "ottawa",
         "New York": "new-york",
-        "San Diego": "san-diego"
+        "san-diego": "san-diego"
     }
 
 def get_state(city_slug):
     if city_slug in ('toronto', 'ottawa'):
         return "on"
-    elif city_slug == 'san diego':
+    elif city_slug == 'san-diego':
         return "ca"
     else:
         return "ny"
